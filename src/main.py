@@ -18,6 +18,7 @@ class ImageSender(base.Command):
             "credentials.json",
             scopes=scope
         )
+        print(creds.project_id)
         client = gspread.authorize(creds)
         url = "https://docs.google.com/spreadsheets/d/1-V7uZEYEXVG87a_OT9y5QE3PTltOZin0HnnY3iaDJJw/edit?usp=sharing"
         self.workbook = client.open_by_url(url)
