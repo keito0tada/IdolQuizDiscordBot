@@ -1,4 +1,5 @@
 import random
+import logging
 import json, os
 import discord
 import gspread
@@ -8,17 +9,20 @@ from .UtilityClasses_DiscordBot import base
 
 class ImageSender(base.Command):
     def __init__(self, bot: discord.ext.commands.Bot, allow_duplicated=False):
+        logging.info('idolquiz init')
         super().__init__(bot, allow_duplicated)
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds_env = os.getenv('GOOGLE_CREDENTIALS')
-        if creds_env is not None:
-            with open('credentials.json', 'w') as f:
-                json.dump(json.load(creds_env), f)
-        creds = Credentials.from_service_account_file(
-            "credentials.json",
-            scopes=scope
-        )
-        print(creds.project_id)
+        if creds_env is None:
+            creds = Credentials.from_service_account_file(
+                "credentials.json",
+                scopes=scope
+            )
+        else:
+            creds = Credentials.from_service_account_info(
+                json.load(creds_env),
+                scopes=scope
+            )
         client = gspread.authorize(creds)
         url = "https://docs.google.com/spreadsheets/d/1-V7uZEYEXVG87a_OT9y5QE3PTltOZin0HnnY3iaDJJw/edit?usp=sharing"
         self.workbook = client.open_by_url(url)
