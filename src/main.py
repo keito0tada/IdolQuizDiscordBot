@@ -15,7 +15,7 @@ class ImageSender(base.Command):
             with open('credentials.json', 'w') as f:
                 json.dump(json.load(creds_env), f)
         creds = Credentials.from_service_account_file(
-            "credential.json",
+            "credentials.json",
             scopes=scope
         )
         client = gspread.authorize(creds)
