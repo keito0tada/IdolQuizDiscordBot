@@ -20,7 +20,7 @@ class ImageSender(base.Command):
             )
         else:
             creds = Credentials.from_service_account_info(
-                json.load(creds_env),
+                json.loads(creds_env),
                 scopes=scope
             )
         client = gspread.authorize(creds)
