@@ -1,36 +1,80 @@
 import random
 import logging
 import json, os
-from typing import Optional
+from typing import Any, Optional
 import discord
+import random
+from discord.interactions import Interaction
 import gspread
 from google.oauth2.service_account import Credentials
 from discord.ext import commands
 
-from cog.IdolQuizDiscordBot.src.UtilityClasses_DiscordBot.base import IWindow
+from cog.IdolQuizDiscordBot.src.UtilityClasses_DiscordBot.base import IWindow, Window
 from .UtilityClasses_DiscordBot import base
 
 
-class QuizWindow(base.Window):
-    def __init__(self, image_url: str):
-        super().__init__(embed_dict={"title": "これは誰？", "image": {"url": image_url}})
-
-
 class QuizWindows(base.Windows):
-    def __init__(self, windows: tuple[IWindow, ...]):
-        super().__init__(windows)
+
+    class AnswerWindow(base.Window):
+        class RetryButton(discord.ui.Button):
+            def __init__(self, windows: 'QuizWindows'):
+                super().__init__(style=discord.ButtonStyle.primary, label='もう一回！')
+                self.windows = windows
+            async def callback(self, interaction: discord.Interaction):
+                await QuizWindows.QuizWindow(windows=self.windows).response_edit(interaction=interaction)
+        def __init__(self, windows: 'QuizWindows', submit_name: str, answer_name: str, image_url: str):
+            if submit_name == answer_name:
+                embed = discord.Embed(title='正解！！', description=submit_name).set_image(url=image_url)
+            else:
+                embed = discord.Embed(title='不正解！！', description='正解は{}！！'.format(answer_name)).set_image(url=image_url)
+            view = discord.ui.View().add_item(QuizWindows.AnswerWindow.RetryButton(windows=windows))
+            super().__init__(embed=embed, view=view)
+
+    class QuizWindow(base.Window):
+        class MemberNameSelect(discord.ui.Select):
+            def __init__(self,member_names: list[str]):
+                random.shuffle(member_names)
+                super().__init__(options=[discord.SelectOption(label=member_name) for member_name in member_names])
+            async def callback(self, interaction: discord.Interaction) -> None:
+                await interaction.response.defer()
+        class Submit(discord.ui.Button):
+            def __init__(self, windows: 'QuizWindows', select: 'QuizWindows.QuizWindow.MemberNameSelect', answer_name: str, image_url: str):
+                super().__init__(style=discord.ButtonStyle.primary, label='決定！')
+                self.windows = windows
+                self.select = select
+                self.answer_name = answer_name
+                self.image_url = image_url
+            async def callback(self, interaction: discord.Interaction) -> None:
+                await QuizWindows.AnswerWindow(windows=self.windows, submit_name=self.select.values[0], answer_name=self.answer_name, image_url=self.image_url).response_edit(interaction=interaction)
+        def __init__(self, windows: 'QuizWindows'):
+            index = random.randint(0, len(windows.image_columns) - 1)
+            embed = discord.Embed(title='だーれだ？？？').set_image(url=windows.image_columns[index][1])
+            view = discord.ui.View()
+            select = QuizWindows.QuizWindow.MemberNameSelect([windows.image_columns[index][0]] + random.sample([idol_member_column[0] for idol_member_column in windows.idol_member_columns[:index] + windows.idol_member_columns[index + 1:]], 5))
+            view.add_item(select)
+            view.add_item(QuizWindows.QuizWindow.Submit(windows=windows, select=select, answer_name=windows.image_columns[index][0], image_url=windows.image_columns[index][1]))
+            super().__init__(embed=embed, view=view)
+
+    def __init__(self, workbook: gspread.Spreadsheet) -> None:
+        self.workbook = workbook
+        self.idol_member_columns = workbook.worksheets()[0].get_all_values()
+        self.image_columns = workbook.worksheets()[1].get_all_values()
+        super().__init__(defaultWindow=QuizWindows.QuizWindow(windows=self))
 
 
-class Runner(base.Runner):
-    def __init__(self, channel: discord.TextChannel, timeout: float = 3):
-        super().__init__(channel, timeout)
-        self.windows = QuizWindows
 
-    def run(self, interaction: discord.Interaction):
-        pass
+class GalleryPages(base.Pages):
+    def __init__(self, workbook: gspread.Spreadsheet) -> None:
+        image_columns = workbook.worksheets()[1].get_all_values()
+        for column in image_columns:
+            print(column[0])
+            print(column[1])
+        super().__init__(windows=[
+            base.Window(embed=discord.Embed(title=column[0]).set_image(url=column[1])) for column in image_columns
+        ], defaultIndex=0)
 
 
-class ImageSender(base.Command):
+class IdolImageSender(base.Command):
     def __init__(self, bot: discord.ext.commands.Bot, allow_duplicated=False):
         logging.info("idolquiz init")
         super().__init__(bot, allow_duplicated)
@@ -67,9 +111,14 @@ class ImageSender(base.Command):
 
     @discord.app_commands.command(description="クイズができます。")
     async def quiz(self, interaction: discord.Interaction):
-        window = base.Window2(content="aaaa")
-        await window.response_send(interaction=interaction)
+        windows = QuizWindows(workbook=self.workbook)
+        await windows.run(interaction=interaction)
+
+    @discord.app_commands.command(description='一覧が見れます')
+    async def gallery(self, interaction: discord.Interaction):
+        pages = GalleryPages()
+        await pages.run(interaction=interaction)
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(ImageSender(bot=bot))
+    await bot.add_cog(IdolImageSender(bot=bot))
