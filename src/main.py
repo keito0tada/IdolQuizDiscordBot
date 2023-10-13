@@ -1,11 +1,33 @@
 import random
 import logging
 import json, os
+from typing import Optional
 import discord
 import gspread
 from google.oauth2.service_account import Credentials
 from discord.ext import commands
+
+from cog.IdolQuizDiscordBot.src.UtilityClasses_DiscordBot.base import IWindow
 from .UtilityClasses_DiscordBot import base
+
+
+class QuizWindow(base.Window):
+    def __init__(self, image_url: str):
+        super().__init__(embed_dict={"title": "これは誰？", "image": {"url": image_url}})
+
+
+class QuizWindows(base.Windows):
+    def __init__(self, windows: tuple[IWindow, ...]):
+        super().__init__(windows)
+
+
+class Runner(base.Runner):
+    def __init__(self, channel: discord.TextChannel, timeout: float = 3):
+        super().__init__(channel, timeout)
+        self.windows = QuizWindows
+
+    def run(self, interaction: discord.Interaction):
+        pass
 
 
 class ImageSender(base.Command):
@@ -42,6 +64,11 @@ class ImageSender(base.Command):
         )
         embed.set_image(url=member_image_list[index][1])
         await interaction.response.send_message(embed=embed)
+
+    @discord.app_commands.command(description="クイズができます。")
+    async def quiz(self, interaction: discord.Interaction):
+        window = base.Window2(content="aaaa")
+        await window.response_send(interaction=interaction)
 
 
 async def setup(bot: commands.Bot):
