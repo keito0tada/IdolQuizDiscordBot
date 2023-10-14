@@ -33,12 +33,14 @@ class QuizWindows(base.Windows):
             image_url: str,
         ):
             if submit_name == answer_name:
-                embed = discord.Embed(title="正解！！", description=submit_name).set_image(
-                    url=image_url
-                )
+                embed = discord.Embed(
+                    title="正解！！", description=submit_name, color=discord.Color.blue()
+                ).set_image(url=image_url)
             else:
                 embed = discord.Embed(
-                    title="不正解！！", description="正解は{}！！".format(answer_name)
+                    title="不正解！！",
+                    description="正解は{}！！".format(answer_name),
+                    color=discord.Color.red(),
                 ).set_image(url=image_url)
             view = discord.ui.View().add_item(
                 QuizWindows.AnswerWindow.RetryButton(windows=windows)
@@ -82,20 +84,27 @@ class QuizWindows(base.Windows):
                 ).response_edit(interaction=interaction)
 
         def __init__(self, windows: "QuizWindows"):
-            index = random.randint(0, len(windows.image_columns) - 1)
+            answer_index = random.randint(0, len(windows.idol_member_columns) - 1)
+            answer_name = windows.idol_member_columns[answer_index][0]
+            image_columns = [
+                column for column in windows.image_columns if column[0] == answer_name
+            ]
+            problem_index = random.randint(0, len(image_columns) - 1)
             embed = discord.Embed(title="だーれだ？？？").set_image(
-                url=windows.image_columns[index][1]
+                url=image_columns[problem_index][1]
             )
             view = discord.ui.View()
             select = QuizWindows.QuizWindow.MemberNameSelect(
-                [windows.image_columns[index][0]]
+                [answer_name]
                 + random.sample(
                     [
                         idol_member_column[0]
-                        for idol_member_column in windows.idol_member_columns[:index]
-                        + windows.idol_member_columns[index + 1 :]
+                        for idol_member_column in windows.idol_member_columns[
+                            :answer_index
+                        ]
+                        + windows.idol_member_columns[answer_index + 1 :]
                     ],
-                    5,
+                    4,
                 )
             )
             view.add_item(select)
@@ -103,8 +112,8 @@ class QuizWindows(base.Windows):
                 QuizWindows.QuizWindow.Submit(
                     windows=windows,
                     select=select,
-                    answer_name=windows.image_columns[index][0],
-                    image_url=windows.image_columns[index][1],
+                    answer_name=answer_name,
+                    image_url=image_columns[problem_index][1],
                 )
             )
             super().__init__(embed=embed, view=view)
