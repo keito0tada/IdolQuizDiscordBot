@@ -14,45 +14,99 @@ from .UtilityClasses_DiscordBot import base
 
 
 class QuizWindows(base.Windows):
-
     class AnswerWindow(base.Window):
         class RetryButton(discord.ui.Button):
-            def __init__(self, windows: 'QuizWindows'):
-                super().__init__(style=discord.ButtonStyle.primary, label='もう一回！')
+            def __init__(self, windows: "QuizWindows"):
+                super().__init__(style=discord.ButtonStyle.primary, label="もう一回！")
                 self.windows = windows
+
             async def callback(self, interaction: discord.Interaction):
-                await QuizWindows.QuizWindow(windows=self.windows).response_edit(interaction=interaction)
-        def __init__(self, windows: 'QuizWindows', submit_name: str, answer_name: str, image_url: str):
+                await QuizWindows.QuizWindow(windows=self.windows).response_edit(
+                    interaction=interaction
+                )
+
+        def __init__(
+            self,
+            windows: "QuizWindows",
+            submit_name: str,
+            answer_name: str,
+            image_url: str,
+        ):
             if submit_name == answer_name:
-                embed = discord.Embed(title='正解！！', description=submit_name).set_image(url=image_url)
+                embed = discord.Embed(title="正解！！", description=submit_name).set_image(
+                    url=image_url
+                )
             else:
-                embed = discord.Embed(title='不正解！！', description='正解は{}！！'.format(answer_name)).set_image(url=image_url)
-            view = discord.ui.View().add_item(QuizWindows.AnswerWindow.RetryButton(windows=windows))
+                embed = discord.Embed(
+                    title="不正解！！", description="正解は{}！！".format(answer_name)
+                ).set_image(url=image_url)
+            view = discord.ui.View().add_item(
+                QuizWindows.AnswerWindow.RetryButton(windows=windows)
+            )
             super().__init__(embed=embed, view=view)
 
     class QuizWindow(base.Window):
         class MemberNameSelect(discord.ui.Select):
-            def __init__(self,member_names: list[str]):
+            def __init__(self, member_names: list[str]):
                 random.shuffle(member_names)
-                super().__init__(options=[discord.SelectOption(label=member_name) for member_name in member_names])
+                super().__init__(
+                    options=[
+                        discord.SelectOption(label=member_name)
+                        for member_name in member_names
+                    ]
+                )
+
             async def callback(self, interaction: discord.Interaction) -> None:
                 await interaction.response.defer()
+
         class Submit(discord.ui.Button):
-            def __init__(self, windows: 'QuizWindows', select: 'QuizWindows.QuizWindow.MemberNameSelect', answer_name: str, image_url: str):
-                super().__init__(style=discord.ButtonStyle.primary, label='決定！')
+            def __init__(
+                self,
+                windows: "QuizWindows",
+                select: "QuizWindows.QuizWindow.MemberNameSelect",
+                answer_name: str,
+                image_url: str,
+            ):
+                super().__init__(style=discord.ButtonStyle.primary, label="決定！")
                 self.windows = windows
                 self.select = select
                 self.answer_name = answer_name
                 self.image_url = image_url
+
             async def callback(self, interaction: discord.Interaction) -> None:
-                await QuizWindows.AnswerWindow(windows=self.windows, submit_name=self.select.values[0], answer_name=self.answer_name, image_url=self.image_url).response_edit(interaction=interaction)
-        def __init__(self, windows: 'QuizWindows'):
+                await QuizWindows.AnswerWindow(
+                    windows=self.windows,
+                    submit_name=self.select.values[0],
+                    answer_name=self.answer_name,
+                    image_url=self.image_url,
+                ).response_edit(interaction=interaction)
+
+        def __init__(self, windows: "QuizWindows"):
             index = random.randint(0, len(windows.image_columns) - 1)
-            embed = discord.Embed(title='だーれだ？？？').set_image(url=windows.image_columns[index][1])
+            embed = discord.Embed(title="だーれだ？？？").set_image(
+                url=windows.image_columns[index][1]
+            )
             view = discord.ui.View()
-            select = QuizWindows.QuizWindow.MemberNameSelect([windows.image_columns[index][0]] + random.sample([idol_member_column[0] for idol_member_column in windows.idol_member_columns[:index] + windows.idol_member_columns[index + 1:]], 5))
+            select = QuizWindows.QuizWindow.MemberNameSelect(
+                [windows.image_columns[index][0]]
+                + random.sample(
+                    [
+                        idol_member_column[0]
+                        for idol_member_column in windows.idol_member_columns[:index]
+                        + windows.idol_member_columns[index + 1 :]
+                    ],
+                    5,
+                )
+            )
             view.add_item(select)
-            view.add_item(QuizWindows.QuizWindow.Submit(windows=windows, select=select, answer_name=windows.image_columns[index][0], image_url=windows.image_columns[index][1]))
+            view.add_item(
+                QuizWindows.QuizWindow.Submit(
+                    windows=windows,
+                    select=select,
+                    answer_name=windows.image_columns[index][0],
+                    image_url=windows.image_columns[index][1],
+                )
+            )
             super().__init__(embed=embed, view=view)
 
     def __init__(self, workbook: gspread.Spreadsheet) -> None:
@@ -62,16 +116,21 @@ class QuizWindows(base.Windows):
         super().__init__(defaultWindow=QuizWindows.QuizWindow(windows=self))
 
 
-
 class GalleryPages(base.Pages):
     def __init__(self, workbook: gspread.Spreadsheet) -> None:
         image_columns = workbook.worksheets()[1].get_all_values()
         for column in image_columns:
             print(column[0])
             print(column[1])
-        super().__init__(windows=[
-            base.Window(embed=discord.Embed(title=column[0]).set_image(url=column[1])) for column in image_columns
-        ], defaultIndex=0)
+        super().__init__(
+            windows=[
+                base.Window(
+                    embed=discord.Embed(title=column[0]).set_image(url=column[1])
+                )
+                for column in image_columns
+            ],
+            defaultIndex=0,
+        )
 
 
 class IdolImageSender(base.Command):
@@ -114,9 +173,9 @@ class IdolImageSender(base.Command):
         windows = QuizWindows(workbook=self.workbook)
         await windows.run(interaction=interaction)
 
-    @discord.app_commands.command(description='一覧が見れます')
+    @discord.app_commands.command(description="一覧が見れます")
     async def gallery(self, interaction: discord.Interaction):
-        pages = GalleryPages()
+        pages = GalleryPages(workbook=self.workbook)
         await pages.run(interaction=interaction)
 
 
